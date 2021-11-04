@@ -6,6 +6,7 @@ import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt'
 import { bcryptSalt } from './constants';
+import { jwtTokensConfig } from './constants'
 
 @Injectable()
 export class AuthService {
@@ -16,7 +17,15 @@ export class AuthService {
         const user = await this.userModel.findOne({ email })
         if (!user || !(this.matchPassword(password, user?.password))) throw new UnauthorizedException('Credentials are incorrect')
 
-        return this.signUser(user?.id, user?.email, user?.name)
+        const payload = { 
+            id: user?.id,
+            name: user?.name
+        }
+
+        return {
+            accessToken: this.generateAccessToken(payload),
+            refreshToken: this.generateRefreshToken(payload, {expiresIn: jwtTokensConfig.refreshTokenExpires})
+        }
     }
 
     public async signUp(signUpDto: SignUpDto) {
@@ -25,15 +34,24 @@ export class AuthService {
         if (user) throw new Error('123')
 
         const { id } = await this.userModel.create({ ...signUpDto, password: this.hashPassword(password) })
-        return this.signUser(id, email, name)
+
+        const payload = {
+            id,
+            name
+        }
+
+        return {
+            accessToken: this.generateAccessToken(payload),
+            refreshToken: this.generateRefreshToken(payload, {expiresIn: jwtTokensConfig.refreshTokenExpires})
+        }
     }
 
-    private signUser(id: number, email: string, name: string) {
-        return this.jwtService.sign({
-            sub: id,
-            email,
-            name
-        })
+    public generateAccessToken(payload: Record<string, any>) {
+        return this.jwtService.signAsync(payload)
+    }
+
+    public generateRefreshToken(payload: Record<string, any>, options: Record<string, any>) {
+        return this.jwtService.signAsync(payload, options)
     }
 
     private async matchPassword(plainPassword: string, hashedPassword: string) {
