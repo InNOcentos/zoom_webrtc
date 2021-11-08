@@ -1,4 +1,4 @@
-export const bcryptSalt = 10
+export const bcryptSalt = 20
 
 export const jwtTokensConfig = {
     accessTokenExpires: '15m',
